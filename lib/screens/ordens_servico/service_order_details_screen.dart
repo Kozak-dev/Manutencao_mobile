@@ -2,8 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:manutencao_mobile/screens/ocorrencias/new_occurrence_models.dart';
 import '../../services/ordem_servico_service.dart';
 
+import 'equipment_maintenance_status_screen.dart';
 import 'my_service_orders_models.dart';
-import 'perform_maintenance_screen.dart';
 
 /// Tela de detalhes de uma OS, aberta a partir de "Minhas Ordens de Serviços".
 ///
@@ -93,7 +93,7 @@ class ServiceOrderDetailsScreen extends StatelessWidget {
     if (!context.mounted) return;
     Navigator.of(context).push(
       MaterialPageRoute<void>(
-        builder: (_) => PerformMaintenanceScreen(serviceOrder: order),
+        builder: (_) => EquipmentMaintenanceStatusScreen(serviceOrder: order),
       ),
     );
   }
