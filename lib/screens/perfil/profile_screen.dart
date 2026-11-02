@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../models/usuario/usuario.dart';
 import '../../services/auth_service.dart';
+import '../../widgets/app_bottom_navigation_bar.dart';
 
 /// Tela "Meu Perfil" integrada aos dados reais do usuário autenticado.
 class ProfileScreen extends StatelessWidget {
@@ -9,7 +10,6 @@ class ProfileScreen extends StatelessWidget {
   final VoidCallback? onLogout;
 
   static const _navy = Color(0xFF122B4B);
-  static const _blue = Color(0xFF2F6BFF);
   static const _red = Color(0xFFE53950);
 
   void _handleLogout(BuildContext context) {
@@ -63,39 +63,7 @@ class ProfileScreen extends StatelessWidget {
           ),
         ),
       ),
-      bottomNavigationBar: BottomNavigationBar(
-        currentIndex: 3,
-        type: BottomNavigationBarType.fixed,
-        backgroundColor: Colors.white,
-        selectedItemColor: _blue,
-        unselectedItemColor: Colors.black87,
-        selectedFontSize: 12,
-        unselectedFontSize: 12,
-        onTap: (index) {
-          if (index == 0) Navigator.pushReplacementNamed(context, '/home');
-          if (index == 1) Navigator.pushReplacementNamed(context, '/ocorrencias');
-          if (index == 2) Navigator.pushReplacementNamed(context, '/minhas-os');
-          if (index == 3) return;
-        },
-        items: const [
-          BottomNavigationBarItem(
-            icon: Icon(Icons.home_outlined),
-            label: 'Início',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.schedule),
-            label: 'Ocorrência',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.calendar_today_outlined),
-            label: 'OS',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.more_horiz),
-            label: 'Mais',
-          ),
-        ],
-      ),
+      bottomNavigationBar: const AppBottomNavigationBar(currentIndex: 3),
     );
   }
 

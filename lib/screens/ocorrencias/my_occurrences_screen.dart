@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../services/ocorrencia_service.dart';
+import '../../widgets/app_bottom_navigation_bar.dart';
 import 'my_occurrences_models.dart';
 import 'occurrence_details_screen.dart';
 
@@ -15,7 +16,6 @@ class MyOccurrencesScreen extends StatefulWidget {
 
 class _MyOccurrencesScreenState extends State<MyOccurrencesScreen> {
   static const _navy = Color(0xFF122B4B);
-  static const _blue = Color(0xFF2F6BFF);
 
   OccurrenceFilter _filter = OccurrenceFilter.all;
   List<OccurrenceListItem> _items = [];
@@ -173,48 +173,7 @@ class _MyOccurrencesScreenState extends State<MyOccurrencesScreen> {
           ),
         ),
       ),
-      bottomNavigationBar: BottomNavigationBar(
-        currentIndex: 1,
-        type: BottomNavigationBarType.fixed,
-        backgroundColor: Colors.white,
-        selectedItemColor: _blue,
-        unselectedItemColor: Colors.black87,
-        selectedFontSize: 12,
-        unselectedFontSize: 12,
-        onTap: (index) {
-          switch (index) {
-            case 0:
-              Navigator.pushReplacementNamed(context, '/home');
-              break;
-            case 1:
-              break;
-            case 2:
-              Navigator.pushReplacementNamed(context, '/minhas-os');
-              break;
-            case 3:
-              Navigator.pushReplacementNamed(context, '/historico');
-              break;
-          }
-        },
-        items: const [
-          BottomNavigationBarItem(
-            icon: Icon(Icons.home_outlined),
-            label: 'Início',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.schedule),
-            label: 'Ocorrência',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.calendar_today_outlined),
-            label: 'OS',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.more_horiz),
-            label: 'Mais',
-          ),
-        ],
-      ),
+      bottomNavigationBar: const AppBottomNavigationBar(currentIndex: 1),
     );
   }
 

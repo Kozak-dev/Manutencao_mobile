@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../models/equipamento/equipamento.dart';
 import '../../services/equipamento_service.dart';
+import '../../widgets/app_bottom_navigation_bar.dart';
 
 class EquipamentosScreen extends StatefulWidget {
   const EquipamentosScreen({super.key, this.equipamentos});
@@ -13,7 +14,6 @@ class EquipamentosScreen extends StatefulWidget {
 
 class _EquipamentosScreenState extends State<EquipamentosScreen> {
   static const _navy = Color(0xFF122B4B);
-  static const _blue = Color(0xFF2F6BFF);
 
   List<Equipamento> _list = [];
   bool _isLoading = true;
@@ -200,38 +200,7 @@ class _EquipamentosScreenState extends State<EquipamentosScreen> {
           ),
         ),
       ),
-      bottomNavigationBar: BottomNavigationBar(
-        currentIndex: 0,
-        type: BottomNavigationBarType.fixed,
-        backgroundColor: Colors.white,
-        selectedItemColor: _blue,
-        unselectedItemColor: Colors.black87,
-        selectedFontSize: 12,
-        unselectedFontSize: 12,
-        onTap: (index) {
-          if (index == 1) Navigator.pushNamed(context, '/ocorrencias');
-          if (index == 2) Navigator.pushNamed(context, '/minhas-os');
-          if (index == 3) Navigator.pushNamed(context, '/historico');
-        },
-        items: const [
-          BottomNavigationBarItem(
-            icon: Icon(Icons.precision_manufacturing_outlined),
-            label: 'Equipamentos',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.schedule),
-            label: 'Ocorrência',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.calendar_today_outlined),
-            label: 'OS',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.more_horiz),
-            label: 'Mais',
-          ),
-        ],
-      ),
+      bottomNavigationBar: const AppBottomNavigationBar(currentIndex: 0),
     );
   }
 

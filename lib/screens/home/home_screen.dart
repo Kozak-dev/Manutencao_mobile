@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../../services/auth_service.dart';
 import '../../services/equipamento_service.dart';
 import '../../services/ocorrencia_service.dart';
+import '../../widgets/app_bottom_navigation_bar.dart';
 import '../ocorrencias/my_occurrences_models.dart';
 import 'home_models.dart';
 
@@ -185,39 +186,7 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
         ),
       ),
-      bottomNavigationBar: BottomNavigationBar(
-        currentIndex: 0,
-        type: BottomNavigationBarType.fixed,
-        backgroundColor: Colors.white,
-        selectedItemColor: _blue,
-        unselectedItemColor: Colors.black87,
-        selectedFontSize: 12,
-        unselectedFontSize: 12,
-        onTap: (index) {
-          if (index == 0) return;
-          if (index == 1) Navigator.pushNamed(context, '/ocorrencias');
-          if (index == 2) Navigator.pushNamed(context, '/minhas-os');
-          if (index == 3) Navigator.pushNamed(context, '/historico');
-        },
-        items: const [
-          BottomNavigationBarItem(
-            icon: Icon(Icons.home_outlined),
-            label: 'Início',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.schedule),
-            label: 'Ocorrência',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.calendar_today_outlined),
-            label: 'OS',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.more_horiz),
-            label: 'Mais',
-          ),
-        ],
-      ),
+      bottomNavigationBar: const AppBottomNavigationBar(currentIndex: 0),
     );
   }
 

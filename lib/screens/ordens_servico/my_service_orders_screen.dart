@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../services/ordem_servico_service.dart';
+import '../../widgets/app_bottom_navigation_bar.dart';
 import 'my_service_orders_models.dart';
 import 'service_order_details_screen.dart';
 
@@ -20,7 +21,6 @@ class MyServiceOrdersScreen extends StatefulWidget {
 
 class _MyServiceOrdersScreenState extends State<MyServiceOrdersScreen> {
   static const _navy = Color(0xFF122B4B);
-  static const _blue = Color(0xFF2F6BFF);
 
   ServiceOrderFilter? _filter;
   List<ServiceOrderListItem> _orders = [];
@@ -174,39 +174,7 @@ class _MyServiceOrdersScreenState extends State<MyServiceOrdersScreen> {
           ),
         ),
       ),
-      bottomNavigationBar: BottomNavigationBar(
-        currentIndex: 2,
-        type: BottomNavigationBarType.fixed,
-        backgroundColor: Colors.white,
-        selectedItemColor: _blue,
-        unselectedItemColor: Colors.black87,
-        selectedFontSize: 12,
-        unselectedFontSize: 12,
-        onTap: (index) {
-          if (index == 0) Navigator.pushNamed(context, '/home');
-          if (index == 1) Navigator.pushNamed(context, '/ocorrencias');
-          if (index == 2) return;
-          if (index == 3) Navigator.pushNamed(context, '/historico');
-        },
-        items: const [
-          BottomNavigationBarItem(
-            icon: Icon(Icons.home_outlined),
-            label: 'Início',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.schedule),
-            label: 'Ocorrência',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.calendar_today_outlined),
-            label: 'OS',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.more_horiz),
-            label: 'Mais',
-          ),
-        ],
-      ),
+      bottomNavigationBar: const AppBottomNavigationBar(currentIndex: 2),
     );
   }
 

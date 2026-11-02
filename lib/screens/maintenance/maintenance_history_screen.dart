@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../services/equipamento_service.dart';
 import '../../services/manutencao_service.dart';
+import '../../widgets/app_bottom_navigation_bar.dart';
 import 'maintenance_history_models.dart';
 
 /// Histórico de manutenções integrado à API real C#.
@@ -17,7 +18,6 @@ class MaintenanceHistoryScreen extends StatefulWidget {
 
 class _MaintenanceHistoryScreenState extends State<MaintenanceHistoryScreen> {
   static const _navy = Color(0xFF122B4B);
-  static const _blue = Color(0xFF2F6BFF);
 
   int? _equipmentId;
   List<MaintenanceHistoryItem> _historyItems = [];
@@ -171,48 +171,7 @@ class _MaintenanceHistoryScreenState extends State<MaintenanceHistoryScreen> {
           ),
         ),
       ),
-      bottomNavigationBar: BottomNavigationBar(
-        currentIndex: 3,
-        type: BottomNavigationBarType.fixed,
-        backgroundColor: Colors.white,
-        selectedItemColor: _blue,
-        unselectedItemColor: Colors.black87,
-        selectedFontSize: 12,
-        unselectedFontSize: 12,
-        onTap: (index) {
-          switch (index) {
-            case 0:
-              Navigator.pushReplacementNamed(context, '/home');
-              break;
-            case 1:
-              Navigator.pushReplacementNamed(context, '/ocorrencias');
-              break;
-            case 2:
-              Navigator.pushReplacementNamed(context, '/minhas-os');
-              break;
-            case 3:
-              break;
-          }
-        },
-        items: const [
-          BottomNavigationBarItem(
-            icon: Icon(Icons.home_outlined),
-            label: 'Início',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.schedule),
-            label: 'Ocorrência',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.calendar_today_outlined),
-            label: 'OS',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.more_horiz),
-            label: 'Mais',
-          ),
-        ],
-      ),
+      bottomNavigationBar: const AppBottomNavigationBar(currentIndex: 3),
     );
   }
 
