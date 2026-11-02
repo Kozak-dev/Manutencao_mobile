@@ -5,6 +5,8 @@ class Usuario {
   final String perfil;
   final String funcao;
   final bool ativo;
+  final String? setor;
+  final String? telefone;
 
   Usuario({
     required this.id,
@@ -13,6 +15,8 @@ class Usuario {
     required this.perfil,
     required this.funcao,
     required this.ativo,
+    this.setor,
+    this.telefone,
   });
 
   bool get isOperador => funcao.toLowerCase() == 'operador';
@@ -22,11 +26,13 @@ class Usuario {
   factory Usuario.fromJson(Map<String, dynamic> json) {
     return Usuario(
       id: json['id'] is int ? json['id'] : int.parse(json['id'].toString()),
-      nome: json['nome'] ?? '',
+      nome: json['nome'] ?? json['userName'] ?? '',
       email: json['email'] ?? '',
-      perfil: json['perfil'] ?? 'Funcionario',
-      funcao: json['funcao'] ?? 'Operador',
-      ativo: json['ativo'] ?? true,
+      perfil: json['perfil'] ?? json['role'] ?? 'Funcionario',
+      funcao: json['funcao'] ?? json['function'] ?? 'Operador',
+      ativo: json['ativo'] ?? json['active'] ?? true,
+      setor: json['setor'] ?? json['sectorName'],
+      telefone: json['telefone'] ?? json['phoneNumber'],
     );
   }
 
@@ -38,6 +44,8 @@ class Usuario {
       'perfil': perfil,
       'funcao': funcao,
       'ativo': ativo,
+      if (setor != null) 'setor': setor,
+      if (telefone != null) 'telefone': telefone,
     };
   }
 }

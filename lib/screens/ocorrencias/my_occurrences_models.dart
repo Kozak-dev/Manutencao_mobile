@@ -50,6 +50,57 @@ class OccurrenceListItem {
   /// Nome do usuário que registrou a ocorrência.
   final String? reporterName;
   final String? description;
+
+  factory OccurrenceListItem.fromJson(Map<String, dynamic> json) {
+    OccurrencePriority priorityEnum = OccurrencePriority.medium;
+    final prioStr = (json['prioridade'] ?? '').toString().toLowerCase();
+    if (prioStr.contains('alta') || prioStr == '2') {
+      priorityEnum = OccurrencePriority.high;
+    } else if (prioStr.contains('baixa') || prioStr == '0') {
+      priorityEnum = OccurrencePriority.low;
+    }
+
+    OccurrenceItemStatus statusEnum = OccurrenceItemStatus.open;
+    final statusStr = (json['status'] ?? '').toString().toLowerCase();
+    if (statusStr.contains('atendimento') || statusStr.contains('andamento') || statusStr == '1') {
+      statusEnum = OccurrenceItemStatus.inProgress;
+    } else if (statusStr.contains('resolv') || statusStr.contains('conclu') || statusStr == '2') {
+      statusEnum = OccurrenceItemStatus.resolved;
+    }
+
+    EquipmentCondition conditionEnum = EquipmentCondition.stopped;
+    final condStr = (json['equipamentoStatus'] ?? json['statusEquipamento'] ?? '').toString().toLowerCase();
+    if (condStr.contains('funcio') || condStr.contains('opera')) {
+      conditionEnum = EquipmentCondition.running;
+    } else if (condStr.contains('manuten')) {
+      conditionEnum = EquipmentCondition.underMaintenance;
+    }
+
+    String eqName = 'Equipamento #${json['equipamentoId'] ?? ''}';
+    if (json['equipamentoNome'] != null) {
+      eqName = json['equipamentoNome'].toString();
+    } else if (json['equipamento'] is Map && json['equipamento']['nome'] != null) {
+      eqName = json['equipamento']['nome'].toString();
+    }
+
+    String? userRep = json['usuarioNome'];
+    if (userRep == null && json['usuario'] is Map && json['usuario']['nome'] != null) {
+      userRep = json['usuario']['nome'].toString();
+    }
+
+    return OccurrenceListItem(
+      id: json['id'] is int ? json['id'] : int.tryParse(json['id']?.toString() ?? '1') ?? 1,
+      equipmentName: eqName,
+      equipmentCondition: conditionEnum,
+      priority: priorityEnum,
+      status: statusEnum,
+      createdAt: json['dataRegistro'] != null
+          ? DateTime.tryParse(json['dataRegistro'].toString()) ?? DateTime.now()
+          : DateTime.now(),
+      reporterName: userRep,
+      description: json['descricao'],
+    );
+  }
 }
 
 // ---------------------------------------------------------------------------

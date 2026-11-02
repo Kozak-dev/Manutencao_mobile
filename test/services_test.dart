@@ -1,6 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:manutencao_mobile/models/usuario/usuario.dart';
 import 'package:manutencao_mobile/models/equipamento/equipamento.dart';
+import 'package:manutencao_mobile/services/api_client.dart';
 import 'package:manutencao_mobile/services/auth_service.dart';
 import 'package:manutencao_mobile/services/equipamento_service.dart';
 import 'package:manutencao_mobile/services/ocorrencia_service.dart';
@@ -8,6 +9,10 @@ import 'package:manutencao_mobile/services/ordem_servico_service.dart';
 import 'package:manutencao_mobile/screens/ocorrencias/new_occurrence_models.dart';
 
 void main() {
+  setUp(() {
+    ApiClient.authToken = 'mock_test_token';
+  });
+
   group('Usuario Model & Roles', () {
     test('Identifica papel de Operador corretamente', () {
       final user = Usuario(
@@ -63,7 +68,7 @@ void main() {
     test('Retorna equipamento por ID', () async {
       final eq = await EquipamentoService.getEquipamentoById(1);
       expect(eq, isNotNull);
-      expect(eq!.id, equals(1));
+      expect(eq.id, equals(1));
     });
   });
 

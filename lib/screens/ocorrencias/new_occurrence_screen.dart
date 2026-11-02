@@ -1,17 +1,17 @@
 import 'package:flutter/material.dart';
+import '../../services/equipamento_service.dart';
 import '../../services/ocorrencia_service.dart';
-
 import 'new_occurrence_models.dart';
 
-/// Tela de registro de uma nova ocorrência.
+/// Tela de registro de uma nova ocorrência integrada com a API C#.
 class NewOccurrenceScreen extends StatefulWidget {
   const NewOccurrenceScreen({
     super.key,
-    this.equipments = demoEquipments,
+    this.equipments,
     this.onSubmit,
   });
 
-  final List<EquipmentOption> equipments;
+  final List<EquipmentOption>? equipments;
 
   /// Se lançar exceção, a tela mostra erro de conexão.
   final Future<void> Function(NewOccurrenceData data)? onSubmit;
@@ -29,9 +29,45 @@ class _NewOccurrenceScreenState extends State<NewOccurrenceScreen> {
   final _formKey = GlobalKey<FormState>();
   final _descriptionController = TextEditingController();
 
+  List<EquipmentOption> _equipmentOptions = [];
+  bool _isLoadingEquipments = true;
   int? _equipmentId;
   OccurrencePriority? _priority;
   bool _isLoading = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadEquipments();
+  }
+
+  Future<void> _loadEquipments() async {
+    if (widget.equipments != null) {
+      setState(() {
+        _equipmentOptions = widget.equipments!;
+        _isLoadingEquipments = false;
+      });
+      return;
+    }
+
+    try {
+      final list = await EquipamentoService.getEquipamentos();
+      final options = list.map((eq) => EquipmentOption(id: eq.id, name: eq.nome)).toList();
+      if (mounted) {
+        setState(() {
+          _equipmentOptions = options;
+          _isLoadingEquipments = false;
+        });
+      }
+    } catch (_) {
+      if (mounted) {
+        setState(() {
+          _equipmentOptions = [];
+          _isLoadingEquipments = false;
+        });
+      }
+    }
+  }
 
   @override
   void dispose() {
@@ -110,7 +146,7 @@ class _NewOccurrenceScreenState extends State<NewOccurrenceScreen> {
           onPressed: () => Navigator.of(context).maybePop(),
         ),
         title: const Text(
-          'Nova Ocorrências',
+          'Nova Ocorrência',
           style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
         ),
       ),
@@ -136,7 +172,7 @@ class _NewOccurrenceScreenState extends State<NewOccurrenceScreen> {
                     const _FieldLabel('Prioridade'),
                     _buildPrioritySelector(),
                     const SizedBox(height: 24),
-                    const _FieldLabel('Anexa foto', suffix: ' (Opcional)'),
+                    const _FieldLabel('Anectar foto', suffix: ' (Opcional)'),
                     _PhotoPlaceholder(
                       onTap: () => _showMessage(
                         'Anexar foto ainda não está disponível.',
@@ -155,14 +191,30 @@ class _NewOccurrenceScreenState extends State<NewOccurrenceScreen> {
   }
 
   Widget _buildEquipmentDropdown() {
+    if (_isLoadingEquipments) {
+      return const LinearProgressIndicator();
+    }
+
+    if (_equipmentOptions.isEmpty) {
+      return DropdownButtonFormField<int>(
+        isExpanded: true,
+        borderRadius: BorderRadius.circular(10),
+        decoration: _fieldDecoration('Nenhum equipamento cadastrado'),
+        items: const [],
+        onChanged: null,
+        validator: (_) => 'Nenhum equipamento cadastrado no sistema.',
+      );
+    }
+
     return DropdownButtonFormField<int>(
       isExpanded: true,
       borderRadius: BorderRadius.circular(10),
       icon: const Icon(Icons.arrow_drop_down),
       iconEnabledColor: Colors.black,
       decoration: _fieldDecoration('Selecione o equipamento'),
+      initialValue: _equipmentId,
       items: [
-        for (final equipment in widget.equipments)
+        for (final equipment in _equipmentOptions)
           DropdownMenuItem<int>(
             value: equipment.id,
             child: Text(equipment.name),
@@ -170,7 +222,7 @@ class _NewOccurrenceScreenState extends State<NewOccurrenceScreen> {
       ],
       onChanged: _isLoading ? null : (id) => setState(() => _equipmentId = id),
       validator: (value) =>
-      value == null ? 'Selecione o equipamento.' : null,
+          value == null ? 'Selecione o equipamento.' : null,
     );
   }
 
@@ -212,9 +264,9 @@ class _NewOccurrenceScreenState extends State<NewOccurrenceScreen> {
                       onTap: _isLoading
                           ? null
                           : () {
-                        field.didChange(priority);
-                        setState(() => _priority = priority);
-                      },
+                              field.didChange(priority);
+                              setState(() => _priority = priority);
+                            },
                     ),
                   ),
                 ],
@@ -251,13 +303,13 @@ class _NewOccurrenceScreenState extends State<NewOccurrenceScreen> {
         ),
         child: _isLoading
             ? const SizedBox(
-          width: 22,
-          height: 22,
-          child: CircularProgressIndicator(
-            strokeWidth: 2.5,
-            color: Colors.white,
-          ),
-        )
+                width: 22,
+                height: 22,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2.5,
+                  color: Colors.white,
+                ),
+              )
             : const Text('Registrar ocorrência'),
       ),
     );
@@ -310,20 +362,20 @@ class _PriorityButton extends StatelessWidget {
   Widget build(BuildContext context) {
     final (Color border, Color background, Color text) = switch (priority) {
       OccurrencePriority.low => (
-      const Color(0xFF2EB872),
-      const Color(0xFFE5F8EE),
-      const Color(0xFF1E9A5A),
-      ),
+          const Color(0xFF2EB872),
+          const Color(0xFFE5F8EE),
+          const Color(0xFF1E9A5A),
+        ),
       OccurrencePriority.medium => (
-      const Color(0xFFF2B544),
-      const Color(0xFFFFF6E0),
-      const Color(0xFFD98E04),
-      ),
+          const Color(0xFFF2B544),
+          const Color(0xFFFFF6E0),
+          const Color(0xFFD98E04),
+        ),
       OccurrencePriority.high => (
-      const Color(0xFFF5748A),
-      const Color(0xFFFFEBEE),
-      const Color(0xFFE53950),
-      ),
+          const Color(0xFFF5748A),
+          const Color(0xFFFFEBEE),
+          const Color(0xFFE53950),
+        ),
     };
 
     return Semantics(
@@ -357,8 +409,6 @@ class _PriorityButton extends StatelessWidget {
   }
 }
 
-/// Área de anexo de foto. Apenas visual: o PIM não prevê imagem na
-/// ocorrência, então ainda não há seleção de arquivo.
 class _PhotoPlaceholder extends StatelessWidget {
   const _PhotoPlaceholder({required this.onTap});
 

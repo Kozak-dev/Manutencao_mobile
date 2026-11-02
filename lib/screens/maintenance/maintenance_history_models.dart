@@ -41,6 +41,42 @@ class MaintenanceHistoryItem {
 
   /// Corresponde ao campo DataConclusao.
   final DateTime completedAt;
+
+  factory MaintenanceHistoryItem.fromJson(Map<String, dynamic> json) {
+    MaintenanceHistoryType typeEnum = MaintenanceHistoryType.corrective;
+    final typeStr = (json['tipoManutencao'] ?? json['tipo'] ?? '').toString().toLowerCase();
+    if (typeStr.contains('preventiva') || typeStr == '1') {
+      typeEnum = MaintenanceHistoryType.preventive;
+    }
+
+    String eqName = 'Equipamento';
+    if (json['equipamentoNome'] != null) {
+      eqName = json['equipamentoNome'].toString();
+    } else if (json['equipamento'] is Map && json['equipamento']['nome'] != null) {
+      eqName = json['equipamento']['nome'].toString();
+    }
+
+    String techName = 'Técnico';
+    if (json['tecnicoNome'] != null) {
+      techName = json['tecnicoNome'].toString();
+    } else if (json['tecnico'] is Map && json['tecnico']['nome'] != null) {
+      techName = json['tecnico']['nome'].toString();
+    }
+
+    return MaintenanceHistoryItem(
+      id: json['id'] is int ? json['id'] : int.tryParse(json['id']?.toString() ?? '1') ?? 1,
+      equipmentId: json['equipamentoId'] is int
+          ? json['equipamentoId']
+          : int.tryParse(json['equipamentoId']?.toString() ?? '1') ?? 1,
+      equipmentName: eqName,
+      maintenanceType: typeEnum,
+      serviceDescription: json['servicoRealizado'] ?? json['servicoDescricao'] ?? json['descricao'] ?? 'Manutenção realizada',
+      technicianName: techName,
+      completedAt: json['dataConclusao'] != null || json['completedAt'] != null
+          ? DateTime.tryParse((json['dataConclusao'] ?? json['completedAt']).toString()) ?? DateTime.now()
+          : DateTime.now(),
+    );
+  }
 }
 
 // ---------------------------------------------------------------------------

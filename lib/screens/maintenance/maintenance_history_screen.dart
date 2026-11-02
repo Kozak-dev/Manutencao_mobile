@@ -1,11 +1,9 @@
 import 'package:flutter/material.dart';
-
+import '../../services/equipamento_service.dart';
+import '../../services/manutencao_service.dart';
 import 'maintenance_history_models.dart';
 
-/// Histórico de manutenções, com filtro por equipamento.
-///
-/// A API ainda não existe: sem [items] e [equipments], usa dados simulados.
-/// O filtro é apenas de exibição.
+/// Histórico de manutenções integrado à API real C#.
 class MaintenanceHistoryScreen extends StatefulWidget {
   const MaintenanceHistoryScreen({super.key, this.items, this.equipments});
 
@@ -21,22 +19,62 @@ class _MaintenanceHistoryScreenState extends State<MaintenanceHistoryScreen> {
   static const _navy = Color(0xFF122B4B);
   static const _blue = Color(0xFF2F6BFF);
 
-  /// Nulo = "Todos os equipamentos".
   int? _equipmentId;
+  List<MaintenanceHistoryItem> _historyItems = [];
+  List<HistoryEquipmentOption> _equipmentOptions = [];
+  bool _isLoading = true;
+  String? _errorMessage;
 
-  List<MaintenanceHistoryItem> get _visibleItems {
-    final all = widget.items ?? demoMaintenanceHistory;
-    final id = _equipmentId;
-    if (id == null) return all;
-    return all.where((item) => item.equipmentId == id).toList();
+  @override
+  void initState() {
+    super.initState();
+    _loadData();
   }
 
-  void _showUnavailable(String destination) {
-    ScaffoldMessenger.of(context)
-      ..hideCurrentSnackBar()
-      ..showSnackBar(
-        SnackBar(content: Text('"$destination" ainda não está disponível.')),
-      );
+  Future<void> _loadData() async {
+    if (widget.items != null && widget.equipments != null) {
+      setState(() {
+        _historyItems = widget.items!;
+        _equipmentOptions = widget.equipments!;
+        _isLoading = false;
+      });
+      return;
+    }
+
+    setState(() {
+      _isLoading = true;
+      _errorMessage = null;
+    });
+
+    try {
+      final history = await ManutencaoService.getHistorico();
+      final eqList = await EquipamentoService.getEquipamentos();
+
+      final eqOptions = eqList
+          .map((eq) => HistoryEquipmentOption(id: eq.id, name: eq.nome))
+          .toList();
+
+      if (mounted) {
+        setState(() {
+          _historyItems = history;
+          _equipmentOptions = eqOptions;
+          _isLoading = false;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+          _errorMessage = e.toString().replaceAll('Exception: ', '');
+        });
+      }
+    }
+  }
+
+  List<MaintenanceHistoryItem> get _visibleItems {
+    final id = _equipmentId;
+    if (id == null) return _historyItems;
+    return _historyItems.where((item) => item.equipmentId == id).toList();
   }
 
   @override
@@ -59,6 +97,13 @@ class _MaintenanceHistoryScreenState extends State<MaintenanceHistoryScreen> {
           'Histórico de Manutenção',
           style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
         ),
+        actions: [
+          IconButton(
+            tooltip: 'Atualizar',
+            icon: const Icon(Icons.refresh),
+            onPressed: _loadData,
+          ),
+        ],
       ),
       body: SafeArea(
         child: Align(
@@ -72,27 +117,54 @@ class _MaintenanceHistoryScreenState extends State<MaintenanceHistoryScreen> {
                   child: _buildEquipmentFilter(),
                 ),
                 Expanded(
-                  child: items.isEmpty
-                      ? const Center(
-                    child: Text(
-                      'Nenhuma manutenção encontrada.',
-                      style: TextStyle(fontSize: 13),
-                    ),
-                  )
-                      : ListView.separated(
-                    padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
-                    itemCount: items.length,
-                    separatorBuilder: (context, index) =>
-                    const SizedBox(height: 16),
-                    itemBuilder: (context, index) {
-                      final item = items[index];
-                      return _MaintenanceCard(
-                        key: ValueKey('maintenance-${item.id}'),
-                        item: item,
-                        onTap: () => _showUnavailable(item.equipmentName),
-                      );
-                    },
-                  ),
+                  child: _isLoading
+                      ? const Center(child: CircularProgressIndicator())
+                      : _errorMessage != null
+                          ? Center(
+                              child: Padding(
+                                padding: const EdgeInsets.all(24),
+                                child: Column(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    const Icon(Icons.error_outline,
+                                        size: 48, color: Color(0xFFD32F2F)),
+                                    const SizedBox(height: 12),
+                                    Text(
+                                      _errorMessage!,
+                                      textAlign: TextAlign.center,
+                                      style: const TextStyle(fontSize: 13),
+                                    ),
+                                    const SizedBox(height: 16),
+                                    ElevatedButton.icon(
+                                      onPressed: _loadData,
+                                      icon: const Icon(Icons.refresh),
+                                      label: const Text('Tentar novamente'),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            )
+                          : items.isEmpty
+                              ? const Center(
+                                  child: Text(
+                                    'Nenhuma manutenção registrada no histórico.',
+                                    style: TextStyle(fontSize: 13),
+                                  ),
+                                )
+                              : ListView.separated(
+                                  padding:
+                                      const EdgeInsets.fromLTRB(16, 8, 16, 16),
+                                  itemCount: items.length,
+                                  separatorBuilder: (context, index) =>
+                                      const SizedBox(height: 16),
+                                  itemBuilder: (context, index) {
+                                    final item = items[index];
+                                    return _MaintenanceCard(
+                                      key: ValueKey('maintenance-${item.id}'),
+                                      item: item,
+                                    );
+                                  },
+                                ),
                 ),
               ],
             ),
@@ -145,8 +217,6 @@ class _MaintenanceHistoryScreenState extends State<MaintenanceHistoryScreen> {
   }
 
   Widget _buildEquipmentFilter() {
-    final equipments = widget.equipments ?? demoHistoryEquipments;
-
     return Semantics(
       label: 'Filtrar por equipamento',
       child: Container(
@@ -169,7 +239,7 @@ class _MaintenanceHistoryScreenState extends State<MaintenanceHistoryScreen> {
                 value: null,
                 child: Text('Todos os equipamentos'),
               ),
-              for (final equipment in equipments)
+              for (final equipment in _equipmentOptions)
                 DropdownMenuItem<int?>(
                   value: equipment.id,
                   child: Text(equipment.name),
@@ -191,10 +261,9 @@ String formatMaintenanceDate(DateTime date) {
 }
 
 class _MaintenanceCard extends StatelessWidget {
-  const _MaintenanceCard({super.key, required this.item, required this.onTap});
+  const _MaintenanceCard({super.key, required this.item});
 
   final MaintenanceHistoryItem item;
-  final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
@@ -209,56 +278,52 @@ class _MaintenanceCard extends StatelessWidget {
       elevation: 3,
       shadowColor: Colors.black45,
       borderRadius: BorderRadius.circular(10),
-      child: InkWell(
-        borderRadius: BorderRadius.circular(10),
-        onTap: onTap,
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Container(
-                width: 48,
-                height: 48,
-                decoration: const BoxDecoration(
-                  color: Color(0xFFE0E0E0),
-                  shape: BoxShape.circle,
-                ),
-                child: const Icon(Icons.precision_manufacturing_outlined),
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Container(
+              width: 48,
+              height: 48,
+              decoration: const BoxDecoration(
+                color: Color(0xFFE0E0E0),
+                shape: BoxShape.circle,
               ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        Expanded(
-                          child: Text(
-                            item.equipmentName,
-                            style: const TextStyle(
-                              fontSize: 15,
-                              fontWeight: FontWeight.w700,
-                            ),
+              child: const Icon(Icons.precision_manufacturing_outlined),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          item.equipmentName,
+                          style: const TextStyle(
+                            fontSize: 15,
+                            fontWeight: FontWeight.w700,
                           ),
                         ),
-                        _TypeBadge(type: item.maintenanceType),
-                      ],
-                    ),
-                    const SizedBox(height: 6),
-                    Text(item.serviceDescription, style: detailStyle),
-                    const SizedBox(height: 2),
-                    Text('Técnico: ${item.technicianName}', style: detailStyle),
-                    const SizedBox(height: 2),
-                    Text(
-                      formatMaintenanceDate(item.completedAt),
-                      style: detailStyle,
-                    ),
-                  ],
-                ),
+                      ),
+                      _TypeBadge(type: item.maintenanceType),
+                    ],
+                  ),
+                  const SizedBox(height: 6),
+                  Text(item.serviceDescription, style: detailStyle),
+                  const SizedBox(height: 2),
+                  Text('Técnico: ${item.technicianName}', style: detailStyle),
+                  const SizedBox(height: 2),
+                  Text(
+                    formatMaintenanceDate(item.completedAt),
+                    style: detailStyle,
+                  ),
+                ],
               ),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
     );
@@ -274,15 +339,15 @@ class _TypeBadge extends StatelessWidget {
   Widget build(BuildContext context) {
     final (Color border, Color background, Color text) = switch (type) {
       MaintenanceHistoryType.preventive => (
-      const Color(0xFF2EB872),
-      const Color(0xFFE5F8EE),
-      const Color(0xFF1E9A5A),
-      ),
+          const Color(0xFF2EB872),
+          const Color(0xFFE5F8EE),
+          const Color(0xFF1E9A5A),
+        ),
       MaintenanceHistoryType.corrective => (
-      const Color(0xFF3B82F6),
-      const Color(0xFFE8F0FF),
-      const Color(0xFF2F6BFF),
-      ),
+          const Color(0xFF3B82F6),
+          const Color(0xFFE8F0FF),
+          const Color(0xFF2F6BFF),
+        ),
     };
 
     return Container(

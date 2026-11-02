@@ -13,7 +13,7 @@ class ApiException implements Exception {
 }
 
 class ApiClient {
-  static String baseUrl = 'http://10.0.2.2:5000/api'; // IP padrão do emulador Android para localhost
+  static String baseUrl = 'http://192.168.15.183:5088/api';
   static String? authToken;
 
   static Map<String, String> get _headers {
@@ -39,6 +39,14 @@ class ApiClient {
         ));
   }
 
+  static Future<dynamic> put(String endpoint, [Map<String, dynamic>? body]) async {
+    return _send(() => http.put(
+          Uri.parse('$baseUrl$endpoint'),
+          headers: _headers,
+          body: body != null ? jsonEncode(body) : null,
+        ));
+  }
+
   static Future<dynamic> patch(String endpoint, [Map<String, dynamic>? body]) async {
     return _send(() => http.patch(
           Uri.parse('$baseUrl$endpoint'),
@@ -47,12 +55,16 @@ class ApiClient {
         ));
   }
 
+  static Future<dynamic> delete(String endpoint) async {
+    return _send(() => http.delete(Uri.parse('$baseUrl$endpoint'), headers: _headers));
+  }
+
   static Future<dynamic> _send(Future<http.Response> Function() request) async {
     try {
       final response = await request().timeout(const Duration(seconds: 10));
       return _processResponse(response);
     } on SocketException {
-      throw ApiException('Não foi possível conectar ao servidor.');
+      throw ApiException('Não foi possível conectar ao servidor. Verifique se o backend está em execução.');
     } on HttpException {
       throw ApiException('Erro na comunicação com o servidor.');
     } on FormatException {
@@ -60,7 +72,7 @@ class ApiClient {
     } on ApiException {
       rethrow;
     } catch (_) {
-      throw ApiException('Não foi possível conectar ao servidor.');
+      throw ApiException('Não foi possível conectar ao servidor. Verifique a conexão de rede.');
     }
   }
 
@@ -76,10 +88,19 @@ class ApiClient {
         String message = 'Dados inválidos.';
         try {
           final data = jsonDecode(response.body);
-          if (data is Map && data.containsKey('message')) {
-            message = data['message'].toString();
-          } else if (data is Map && data.containsKey('errors')) {
-            message = data['errors'].toString();
+          if (data is Map) {
+            if (data.containsKey('message') && data['message'] != null) {
+              message = data['message'].toString();
+            } else if (data.containsKey('errors') && data['errors'] != null) {
+              final errors = data['errors'];
+              if (errors is Map) {
+                message = errors.values.map((v) => v is List ? v.join(', ') : v.toString()).join('\n');
+              } else {
+                message = errors.toString();
+              }
+            } else if (data.containsKey('title') && data['title'] != null) {
+              message = data['title'].toString();
+            }
           }
         } catch (_) {}
         throw ApiException(message, statusCode: 400);
@@ -88,10 +109,17 @@ class ApiClient {
       case 403:
         throw ApiException('Você não possui permissão para realizar esta ação.', statusCode: 403);
       case 404:
-        throw ApiException('Registro não encontrado.', statusCode: 404);
+        throw ApiException('Registro não encontrado no servidor.', statusCode: 404);
       case 500:
       default:
-        throw ApiException('Erro no servidor. Tente novamente mais tarde.', statusCode: response.statusCode);
+        String message = 'Erro no servidor. Tente novamente mais tarde.';
+        try {
+          final data = jsonDecode(response.body);
+          if (data is Map && data.containsKey('message') && data['message'] != null) {
+            message = data['message'].toString();
+          }
+        } catch (_) {}
+        throw ApiException(message, statusCode: response.statusCode);
     }
   }
 }

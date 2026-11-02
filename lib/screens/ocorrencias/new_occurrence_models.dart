@@ -16,8 +16,7 @@ class EquipmentOption {
   final String name;
 }
 
-/// Dados que o aplicativo envia à API ao registrar uma ocorrência
-/// (conforme o PIM: equipamentoId, descricao e prioridade).
+/// Dados que o aplicativo envia à API ao registrar uma ocorrência.
 class NewOccurrenceData {
   const NewOccurrenceData({
     required this.equipmentId,
@@ -29,13 +28,3 @@ class NewOccurrenceData {
   final String description;
   final OccurrencePriority priority;
 }
-
-// ---------------------------------------------------------------------------
-// DADOS SIMULADOS (apenas para demonstração do protótipo).
-// Substituir pela lista real de equipamentos quando a API estiver disponível.
-// ---------------------------------------------------------------------------
-const demoEquipments = [
-  EquipmentOption(id: 1, name: 'Prensa 01'),
-  EquipmentOption(id: 2, name: 'Prensa 02'),
-  EquipmentOption(id: 3, name: 'Compressor 01'),
-];

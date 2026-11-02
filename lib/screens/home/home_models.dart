@@ -23,21 +23,3 @@ class OccurrenceSummary {
   final String equipmentName;
   final OccurrenceStatus status;
 }
-
-// ---------------------------------------------------------------------------
-// DADOS SIMULADOS (apenas para demonstração do protótipo).
-// Substituir pelos dados reais quando a API estiver disponível.
-// ---------------------------------------------------------------------------
-const demoEquipmentSummary = EquipmentStatusSummary(
-  running: 12,
-  underMaintenance: 3,
-  stopped: 2,
-);
-
-const demoOccurrences = [
-  OccurrenceSummary(equipmentName: 'Prensa 02', status: OccurrenceStatus.open),
-  OccurrenceSummary(
-    equipmentName: 'Compressor 01',
-    status: OccurrenceStatus.inProgress,
-  ),
-];

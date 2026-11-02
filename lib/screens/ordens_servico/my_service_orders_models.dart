@@ -51,6 +51,57 @@ class ServiceOrderListItem {
 
   /// Código exibido, por exemplo "OS-0017".
   String get code => 'OS-${id.toString().padLeft(4, '0')}';
+
+  factory ServiceOrderListItem.fromJson(Map<String, dynamic> json) {
+    ServiceOrderStatus statusEnum = ServiceOrderStatus.open;
+    final statusStr = (json['status'] ?? '').toString().toLowerCase();
+    if (statusStr.contains('atendimento') || statusStr.contains('andamento') || statusStr == '1') {
+      statusEnum = ServiceOrderStatus.inProgress;
+    } else if (statusStr.contains('conclu') || statusStr.contains('finaliz') || statusStr == '2') {
+      statusEnum = ServiceOrderStatus.completed;
+    }
+
+    MaintenanceType typeEnum = MaintenanceType.corrective;
+    final typeStr = (json['tipoManutencao'] ?? json['tipo'] ?? '').toString().toLowerCase();
+    if (typeStr.contains('preventiva') || typeStr == '1') {
+      typeEnum = MaintenanceType.preventive;
+    }
+
+    OccurrencePriority? prioEnum;
+    if (json['occurrencePriority'] != null || json['ocorrenciaPrioridade'] != null) {
+      final pStr = (json['occurrencePriority'] ?? json['ocorrenciaPrioridade']).toString().toLowerCase();
+      if (pStr.contains('alta')) prioEnum = OccurrencePriority.high;
+      if (pStr.contains('media') || pStr.contains('média')) prioEnum = OccurrencePriority.medium;
+      if (pStr.contains('baixa')) prioEnum = OccurrencePriority.low;
+    }
+
+    String eqName = 'Equipamento';
+    if (json['equipamentoNome'] != null) {
+      eqName = json['equipamentoNome'].toString();
+    } else if (json['equipamento'] is Map && json['equipamento']['nome'] != null) {
+      eqName = json['equipamento']['nome'].toString();
+    }
+
+    String? techName = json['tecnicoNome'];
+    if (techName == null && json['tecnico'] is Map && json['tecnico']['nome'] != null) {
+      techName = json['tecnico']['nome'].toString();
+    }
+
+    return ServiceOrderListItem(
+      id: json['id'] is int ? json['id'] : int.tryParse(json['id']?.toString() ?? '1') ?? 1,
+      equipmentName: eqName,
+      maintenanceType: typeEnum,
+      status: statusEnum,
+      createdAt: json['dataAbertura'] != null || json['dataCriacao'] != null
+          ? DateTime.tryParse((json['dataAbertura'] ?? json['dataCriacao']).toString()) ?? DateTime.now()
+          : DateTime.now(),
+      technicianName: techName,
+      occurrenceId: json['ocorrenciaId'] is int
+          ? json['ocorrenciaId']
+          : int.tryParse(json['ocorrenciaId']?.toString() ?? ''),
+      occurrencePriority: prioEnum,
+    );
+  }
 }
 
 /// Formata a data como "07/09/2026, 10:22".

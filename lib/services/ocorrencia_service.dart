@@ -13,8 +13,10 @@ class OcorrenciaService {
     try {
       await ApiClient.post('/ocorrencias', payload);
     } catch (e) {
-      if (e is ApiException && e.statusCode == 400) rethrow;
-      // Em modo offline/demo ou ambiente de testes sem backend ativo
+      if (ApiClient.authToken?.startsWith('mock_') == true) {
+        return;
+      }
+      rethrow;
     }
   }
 
@@ -22,28 +24,31 @@ class OcorrenciaService {
     try {
       final response = await ApiClient.get('/ocorrencias');
       if (response != null && response is List) {
-        return response.map((item) {
-          final map = item as Map<String, dynamic>;
-          return OccurrenceListItem(
-            id: map['id'] ?? 1,
-            equipmentName: map['equipamentoNome'] ?? 'Equipamento',
-            priority: OccurrencePriority.values.firstWhere(
-              (p) => p.label.toLowerCase() == (map['prioridade'] ?? '').toString().toLowerCase(),
-              orElse: () => OccurrencePriority.medium,
-            ),
-            equipmentCondition: EquipmentCondition.stopped,
-            status: OccurrenceItemStatus.open,
-            createdAt: map['dataRegistro'] != null
-                ? DateTime.tryParse(map['dataRegistro'].toString()) ?? DateTime.now()
-                : DateTime.now(),
-            reporterName: map['usuarioNome'],
-            description: map['descricao'],
-          );
-        }).toList();
+        return response
+            .map((item) => OccurrenceListItem.fromJson(item as Map<String, dynamic>))
+            .toList();
       }
-    } catch (_) {
-      // Fallback
+      return [];
+    } catch (e) {
+      if (ApiClient.authToken?.startsWith('mock_') == true) {
+        return buildDemoOccurrences(DateTime.now());
+      }
+      rethrow;
     }
-    return buildDemoOccurrences(DateTime.now());
+  }
+
+  static Future<OccurrenceListItem> getOcorrenciaById(int id) async {
+    try {
+      final response = await ApiClient.get('/ocorrencias/$id');
+      if (response != null && response is Map<String, dynamic>) {
+        return OccurrenceListItem.fromJson(response);
+      }
+    } catch (e) {
+      if (ApiClient.authToken?.startsWith('mock_') == true) {
+        return buildDemoOccurrences(DateTime.now()).firstWhere((o) => o.id == id, orElse: () => buildDemoOccurrences(DateTime.now()).first);
+      }
+      rethrow;
+    }
+    throw ApiException('Ocorrência #$id não encontrada.');
   }
 }

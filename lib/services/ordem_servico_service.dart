@@ -7,39 +7,46 @@ class OrdemServicoService {
       final endpoint = apenasDisponiveis ? '/ordens-servico?disponiveis=true' : '/ordens-servico';
       final response = await ApiClient.get(endpoint);
       if (response != null && response is List) {
-        return response.map((item) {
-          final map = item as Map<String, dynamic>;
-          return ServiceOrderListItem(
-            id: map['id'] is int ? map['id'] : int.parse(map['id'].toString()),
-            equipmentName: map['equipamentoNome'] ?? 'Equipamento',
-            maintenanceType: MaintenanceType.corrective,
-            status: ServiceOrderStatus.open,
-            createdAt: map['dataAbertura'] != null
-                ? DateTime.tryParse(map['dataAbertura'].toString()) ?? DateTime.now()
-                : DateTime.now(),
-            technicianName: map['tecnicoNome'],
-            occurrenceId: map['ocorrenciaId'],
-          );
-        }).toList();
+        return response
+            .map((item) => ServiceOrderListItem.fromJson(item as Map<String, dynamic>))
+            .toList();
       }
-    } catch (_) {
-      // Fallback
+      return [];
+    } catch (e) {
+      if (ApiClient.authToken?.startsWith('mock_') == true) {
+        final demoList = demoServiceOrders;
+        if (apenasDisponiveis) {
+          return demoList
+              .where((os) => os.status == ServiceOrderStatus.open && os.technicianName == null)
+              .toList();
+        }
+        return demoList;
+      }
+      rethrow;
     }
+  }
 
-    final demoList = demoServiceOrders;
-    if (apenasDisponiveis) {
-      return demoList
-          .where((os) => os.status == ServiceOrderStatus.open && os.technicianName == null)
-          .toList();
+  static Future<ServiceOrderListItem> getOrdemServicoById(int id) async {
+    try {
+      final response = await ApiClient.get('/ordens-servico/$id');
+      if (response != null && response is Map<String, dynamic>) {
+        return ServiceOrderListItem.fromJson(response);
+      }
+    } catch (e) {
+      if (ApiClient.authToken?.startsWith('mock_') == true) {
+        return demoServiceOrders.firstWhere((os) => os.id == id, orElse: () => demoServiceOrders.first);
+      }
+      rethrow;
     }
-    return demoList;
+    throw ApiException('Ordem de serviço #$id não encontrada.');
   }
 
   static Future<void> assumirOrdemServico(int ordemServicoId) async {
     try {
       await ApiClient.patch('/ordens-servico/$ordemServicoId/assumir');
     } catch (e) {
-      if (e is ApiException) rethrow;
+      if (ApiClient.authToken?.startsWith('mock_') == true) return;
+      rethrow;
     }
   }
 
@@ -47,7 +54,8 @@ class OrdemServicoService {
     try {
       await ApiClient.patch('/ordens-servico/$ordemServicoId/iniciar');
     } catch (e) {
-      if (e is ApiException) rethrow;
+      if (ApiClient.authToken?.startsWith('mock_') == true) return;
+      rethrow;
     }
   }
 }

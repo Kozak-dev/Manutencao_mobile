@@ -1,14 +1,9 @@
 import 'package:flutter/material.dart';
-
-
+import '../../services/ocorrencia_service.dart';
 import 'my_occurrences_models.dart';
 import 'occurrence_details_screen.dart';
 
-/// Lista de ocorrências do usuário, com filtro por situação.
-///
-/// A API ainda não existe: sem [occurrences], usa dados simulados.
-/// O filtro é apenas de exibição; nenhuma regra de negócio é aplicada aqui.
-/// Tocar numa ocorrência abre a tela de detalhes.
+/// Lista de ocorrências do usuário integrada à API C#.
 class MyOccurrencesScreen extends StatefulWidget {
   const MyOccurrencesScreen({super.key, this.occurrences});
 
@@ -22,24 +17,61 @@ class _MyOccurrencesScreenState extends State<MyOccurrencesScreen> {
   static const _navy = Color(0xFF122B4B);
   static const _blue = Color(0xFF2F6BFF);
 
-  late final List<OccurrenceListItem> _demoItems =
-  buildDemoOccurrences(DateTime.now());
-
   OccurrenceFilter _filter = OccurrenceFilter.all;
+  List<OccurrenceListItem> _items = [];
+  bool _isLoading = true;
+  String? _errorMessage;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadOccurrences();
+  }
+
+  Future<void> _loadOccurrences() async {
+    if (widget.occurrences != null) {
+      setState(() {
+        _items = widget.occurrences!;
+        _isLoading = false;
+      });
+      return;
+    }
+
+    setState(() {
+      _isLoading = true;
+      _errorMessage = null;
+    });
+
+    try {
+      final list = await OcorrenciaService.getMinhasOcorrencias();
+      if (mounted) {
+        setState(() {
+          _items = list;
+          _isLoading = false;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+          _errorMessage = e.toString().replaceAll('Exception: ', '');
+        });
+      }
+    }
+  }
 
   List<OccurrenceListItem> get _visibleItems {
-    final all = widget.occurrences ?? _demoItems;
-    return all.where(_matchesFilter).toList();
+    return _items.where(_matchesFilter).toList();
   }
 
   bool _matchesFilter(OccurrenceListItem item) => switch (_filter) {
-    OccurrenceFilter.all => true,
-    OccurrenceFilter.open => item.status == OccurrenceItemStatus.open,
-    OccurrenceFilter.inProgress =>
-    item.status == OccurrenceItemStatus.inProgress,
-    OccurrenceFilter.resolved =>
-    item.status == OccurrenceItemStatus.resolved,
-  };
+        OccurrenceFilter.all => true,
+        OccurrenceFilter.open => item.status == OccurrenceItemStatus.open,
+        OccurrenceFilter.inProgress =>
+          item.status == OccurrenceItemStatus.inProgress,
+        OccurrenceFilter.resolved =>
+          item.status == OccurrenceItemStatus.resolved,
+      };
 
   void _openDetails(OccurrenceListItem item) {
     Navigator.of(context).push(
@@ -51,7 +83,7 @@ class _MyOccurrencesScreenState extends State<MyOccurrencesScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final items = _visibleItems;
+    final visible = _visibleItems;
 
     return Scaffold(
       backgroundColor: Colors.white,
@@ -69,6 +101,13 @@ class _MyOccurrencesScreenState extends State<MyOccurrencesScreen> {
           'Minhas Ocorrências',
           style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
         ),
+        actions: [
+          IconButton(
+            tooltip: 'Atualizar',
+            icon: const Icon(Icons.refresh),
+            onPressed: _loadOccurrences,
+          ),
+        ],
       ),
       body: SafeArea(
         child: Align(
@@ -79,27 +118,55 @@ class _MyOccurrencesScreenState extends State<MyOccurrencesScreen> {
               children: [
                 _buildFilters(),
                 Expanded(
-                  child: items.isEmpty
-                      ? const Center(
-                    child: Text(
-                      'Nenhuma ocorrência encontrada.',
-                      style: TextStyle(fontSize: 13),
-                    ),
-                  )
-                      : ListView.separated(
-                    padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
-                    itemCount: items.length,
-                    separatorBuilder: (context, index) =>
-                    const SizedBox(height: 16),
-                    itemBuilder: (context, index) {
-                      final item = items[index];
-                      return _OccurrenceCard(
-                        key: ValueKey('occurrence-${item.id}'),
-                        item: item,
-                        onTap: () => _openDetails(item),
-                      );
-                    },
-                  ),
+                  child: _isLoading
+                      ? const Center(child: CircularProgressIndicator())
+                      : _errorMessage != null
+                          ? Center(
+                              child: Padding(
+                                padding: const EdgeInsets.all(24),
+                                child: Column(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    const Icon(Icons.error_outline,
+                                        size: 48, color: Color(0xFFD32F2F)),
+                                    const SizedBox(height: 12),
+                                    Text(
+                                      _errorMessage!,
+                                      textAlign: TextAlign.center,
+                                      style: const TextStyle(fontSize: 13),
+                                    ),
+                                    const SizedBox(height: 16),
+                                    ElevatedButton.icon(
+                                      onPressed: _loadOccurrences,
+                                      icon: const Icon(Icons.refresh),
+                                      label: const Text('Tentar novamente'),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            )
+                          : visible.isEmpty
+                              ? const Center(
+                                  child: Text(
+                                    'Nenhuma ocorrência encontrada.',
+                                    style: TextStyle(fontSize: 13),
+                                  ),
+                                )
+                              : ListView.separated(
+                                  padding: const EdgeInsets.fromLTRB(
+                                      16, 8, 16, 16),
+                                  itemCount: visible.length,
+                                  separatorBuilder: (context, index) =>
+                                      const SizedBox(height: 16),
+                                  itemBuilder: (context, index) {
+                                    final item = visible[index];
+                                    return _OccurrenceCard(
+                                      key: ValueKey('occurrence-${item.id}'),
+                                      item: item,
+                                      onTap: () => _openDetails(item),
+                                    );
+                                  },
+                                ),
                 ),
               ],
             ),
@@ -182,10 +249,10 @@ class _MyOccurrencesScreenState extends State<MyOccurrencesScreen> {
   }
 }
 
-/// Formata a data para a lista: "Hoje, 8:15", "Ontem, 16:30" ou "06/09, 10:22".
+/// Formata a data para a lista.
 @visibleForTesting
 String formatOccurrenceDate(DateTime date, DateTime now) {
-  final time = '${date.hour}:${date.minute.toString().padLeft(2, '0')}';
+  final time = '${date.hour.toString().padLeft(2, '0')}:${date.minute.toString().padLeft(2, '0')}';
   final day = DateTime(date.year, date.month, date.day);
 
   if (day == DateTime(now.year, now.month, now.day)) return 'Hoje, $time';
@@ -250,8 +317,7 @@ class _OccurrenceCard extends StatelessWidget {
                       children: [
                         Expanded(
                           child: Text(
-                            '${item.equipmentCondition.label} - '
-                                '${item.priority.label} prioridade',
+                            '${item.equipmentCondition.label} - ${item.priority.label} prioridade',
                             style: const TextStyle(
                               fontSize: 11,
                               fontWeight: FontWeight.w500,
@@ -296,25 +362,25 @@ class _StatusBadge extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final (String label, Color border, Color background, Color text) =
-    switch (status) {
+        switch (status) {
       OccurrenceItemStatus.open => (
-      'Aberta',
-      const Color(0xFFF5304F),
-      const Color(0xFFFFEBEE),
-      const Color(0xFFE53950),
-      ),
+          'Aberta',
+          const Color(0xFFF5304F),
+          const Color(0xFFFFEBEE),
+          const Color(0xFFE53950),
+        ),
       OccurrenceItemStatus.inProgress => (
-      'Em atendimento',
-      const Color(0xFFFFA000),
-      const Color(0xFFFFF4DC),
-      const Color(0xFFE08600),
-      ),
+          'Em atendimento',
+          const Color(0xFFFFA000),
+          const Color(0xFFFFF4DC),
+          const Color(0xFFE08600),
+        ),
       OccurrenceItemStatus.resolved => (
-      'Resolvida',
-      const Color(0xFF2EB872),
-      const Color(0xFFE5F8EE),
-      const Color(0xFF1E9A5A),
-      ),
+          'Resolvida',
+          const Color(0xFF2EB872),
+          const Color(0xFFE5F8EE),
+          const Color(0xFF1E9A5A),
+        ),
     };
 
     return Container(

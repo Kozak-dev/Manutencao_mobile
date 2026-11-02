@@ -1,20 +1,28 @@
 import 'package:flutter/material.dart';
 import '../../services/auth_service.dart';
+import '../../services/equipamento_service.dart';
+import '../../services/ocorrencia_service.dart';
+import '../ocorrencias/my_occurrences_models.dart';
 import 'home_models.dart';
 
-/// Tela inicial do aplicativo com atalhos adaptados por perfil do usuário.
-class HomeScreen extends StatelessWidget {
+/// Tela inicial do aplicativo integrada com a API real C#.
+class HomeScreen extends StatefulWidget {
   const HomeScreen({
     super.key,
     this.userName,
-    this.statusSummary = demoEquipmentSummary,
-    this.occurrences = demoOccurrences,
+    this.statusSummary,
+    this.occurrences,
   });
 
   final String? userName;
-  final EquipmentStatusSummary statusSummary;
-  final List<OccurrenceSummary> occurrences;
+  final EquipmentStatusSummary? statusSummary;
+  final List<OccurrenceSummary>? occurrences;
 
+  @override
+  State<HomeScreen> createState() => _HomeScreenState();
+}
+
+class _HomeScreenState extends State<HomeScreen> {
   static const _blue = Color(0xFF2F6BFF);
   static const _green = Color(0xFF2DB783);
   static const _orange = Color(0xFFFFA726);
@@ -22,10 +30,76 @@ class HomeScreen extends StatelessWidget {
   static const _red = Color(0xFFF5304F);
   static const _yellow = Color(0xFFFFB927);
 
+  bool _isLoading = true;
+  String? _errorMessage;
+
+  EquipmentStatusSummary _summary = const EquipmentStatusSummary(
+    running: 0,
+    underMaintenance: 0,
+    stopped: 0,
+  );
+
+  List<OccurrenceSummary> _occurrencesList = [];
+
+  @override
+  void initState() {
+    super.initState();
+    _loadHomeData();
+  }
+
+  Future<void> _loadHomeData() async {
+    if (widget.statusSummary != null && widget.occurrences != null) {
+      setState(() {
+        _summary = widget.statusSummary!;
+        _occurrencesList = widget.occurrences!;
+        _isLoading = false;
+      });
+      return;
+    }
+
+    setState(() {
+      _isLoading = true;
+      _errorMessage = null;
+    });
+
+    try {
+      final summaryData = await EquipamentoService.getStatusSummary();
+      final occurrencesData = await OcorrenciaService.getMinhasOcorrencias();
+
+      final occurrencesSummaries = occurrencesData.take(5).map((occ) {
+        return OccurrenceSummary(
+          equipmentName: occ.equipmentName,
+          status: occ.status == OccurrenceItemStatus.open
+              ? OccurrenceStatus.open
+              : OccurrenceStatus.inProgress,
+        );
+      }).toList();
+
+      if (mounted) {
+        setState(() {
+          _summary = EquipmentStatusSummary(
+            running: summaryData.running,
+            underMaintenance: summaryData.underMaintenance,
+            stopped: summaryData.stopped,
+          );
+          _occurrencesList = occurrencesSummaries;
+          _isLoading = false;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+          _errorMessage = e.toString().replaceAll('Exception: ', '');
+        });
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final user = AuthService.currentUser;
-    final displayName = userName ?? user?.nome ?? 'Usuário';
+    final displayName = widget.userName ?? user?.nome ?? 'Usuário';
 
     return Scaffold(
       backgroundColor: Colors.white,
@@ -40,24 +114,70 @@ class HomeScreen extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      'Olá $displayName!',
-                      style: const TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      user != null ? 'Função: ${user.funcao}' : 'Bem vindo ao sistema',
-                      style: const TextStyle(fontSize: 12, color: Color(0xFF616161)),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Olá $displayName!',
+                              style: const TextStyle(
+                                fontSize: 18,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              user != null ? 'Função: ${user.funcao}' : 'Bem vindo ao sistema',
+                              style: const TextStyle(fontSize: 12, color: Color(0xFF616161)),
+                            ),
+                          ],
+                        ),
+                        IconButton(
+                          tooltip: 'Atualizar dados',
+                          icon: const Icon(Icons.refresh),
+                          onPressed: _loadHomeData,
+                        ),
+                      ],
                     ),
                     const SizedBox(height: 20),
                     _buildQuickAccess(context),
                     const SizedBox(height: 20),
-                    _buildEquipmentStatus(),
-                    const SizedBox(height: 20),
-                    _buildOccurrences(context),
+                    if (_isLoading)
+                      const Card(
+                        child: Padding(
+                          padding: EdgeInsets.all(32),
+                          child: Center(child: CircularProgressIndicator()),
+                        ),
+                      )
+                    else if (_errorMessage != null)
+                      Card(
+                        color: const Color(0xFFFFEBEE),
+                        child: Padding(
+                          padding: const EdgeInsets.all(16),
+                          child: Column(
+                            children: [
+                              Text(
+                                _errorMessage!,
+                                textAlign: TextAlign.center,
+                                style: const TextStyle(color: _red, fontSize: 13),
+                              ),
+                              const SizedBox(height: 8),
+                              OutlinedButton.icon(
+                                onPressed: _loadHomeData,
+                                icon: const Icon(Icons.refresh, size: 16),
+                                label: const Text('Tentar Novamente'),
+                              ),
+                            ],
+                          ),
+                        ),
+                      )
+                    else ...[
+                      _buildEquipmentStatus(),
+                      const SizedBox(height: 20),
+                      _buildOccurrences(context),
+                    ],
                   ],
                 ),
               ),
@@ -237,7 +357,7 @@ class HomeScreen extends StatelessWidget {
             Expanded(
               child: _StatusItem(
                 color: const Color(0xFF2EC27E),
-                count: statusSummary.running,
+                count: _summary.running,
                 label: 'Funcionando',
               ),
             ),
@@ -245,7 +365,7 @@ class HomeScreen extends StatelessWidget {
             Expanded(
               child: _StatusItem(
                 color: _yellow,
-                count: statusSummary.underMaintenance,
+                count: _summary.underMaintenance,
                 label: 'Em manutenção',
               ),
             ),
@@ -253,7 +373,7 @@ class HomeScreen extends StatelessWidget {
             Expanded(
               child: _StatusItem(
                 color: _red,
-                count: statusSummary.stopped,
+                count: _summary.stopped,
                 label: 'Parado',
               ),
             ),
@@ -291,7 +411,7 @@ class HomeScreen extends StatelessWidget {
             ],
           ),
           const Divider(height: 1, color: Colors.black54),
-          if (occurrences.isEmpty)
+          if (_occurrencesList.isEmpty)
             const Padding(
               padding: EdgeInsets.symmetric(vertical: 24),
               child: Text(
@@ -300,10 +420,10 @@ class HomeScreen extends StatelessWidget {
               ),
             )
           else
-            for (var i = 0; i < occurrences.length; i++) ...[
+            for (var i = 0; i < _occurrencesList.length; i++) ...[
               if (i > 0) const Divider(height: 1, color: Colors.black54),
               _OccurrenceRow(
-                occurrence: occurrences[i],
+                occurrence: _occurrencesList[i],
                 onTap: () => Navigator.pushNamed(context, '/ocorrencias'),
               ),
             ],
@@ -484,7 +604,7 @@ class _OccurrenceRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isOpen = occurrence.status == OccurrenceStatus.open;
-    final dotColor = isOpen ? HomeScreen._red : HomeScreen._yellow;
+    final dotColor = isOpen ? _HomeScreenState._red : _HomeScreenState._yellow;
 
     return InkWell(
       onTap: onTap,
@@ -524,7 +644,7 @@ class _StatusBadge extends StatelessWidget {
   Widget build(BuildContext context) {
     final isOpen = status == OccurrenceStatus.open;
     final text = isOpen ? 'Aberto' : 'Em andamento';
-    final border = isOpen ? HomeScreen._red : const Color(0xFFFFA000);
+    final border = isOpen ? _HomeScreenState._red : const Color(0xFFFFA000);
     final background =
         isOpen ? const Color(0xFFFFEBEE) : const Color(0xFFFFF4DC);
 
@@ -540,7 +660,7 @@ class _StatusBadge extends StatelessWidget {
         style: TextStyle(
           fontSize: 12,
           fontWeight: FontWeight.w500,
-          color: isOpen ? HomeScreen._red : const Color(0xFFE08600),
+          color: isOpen ? _HomeScreenState._red : const Color(0xFFE08600),
         ),
       ),
     );

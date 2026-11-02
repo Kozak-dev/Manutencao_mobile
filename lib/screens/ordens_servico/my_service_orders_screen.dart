@@ -1,10 +1,9 @@
 import 'package:flutter/material.dart';
-
 import '../../services/ordem_servico_service.dart';
 import 'my_service_orders_models.dart';
 import 'service_order_details_screen.dart';
 
-/// Lista de ordens de serviço, suportando carregamento do backend e filtro de OS Disponíveis.
+/// Lista de ordens de serviço integrada ao backend C#.
 class MyServiceOrdersScreen extends StatefulWidget {
   const MyServiceOrdersScreen({
     super.key,
@@ -26,6 +25,7 @@ class _MyServiceOrdersScreenState extends State<MyServiceOrdersScreen> {
   ServiceOrderFilter? _filter;
   List<ServiceOrderListItem> _orders = [];
   bool _isLoading = true;
+  String? _errorMessage;
 
   @override
   void initState() {
@@ -42,6 +42,11 @@ class _MyServiceOrdersScreenState extends State<MyServiceOrdersScreen> {
       return;
     }
 
+    setState(() {
+      _isLoading = true;
+      _errorMessage = null;
+    });
+
     try {
       final list = await OrdemServicoService.getOrdensServico(
         apenasDisponiveis: widget.apenasDisponiveis,
@@ -52,8 +57,13 @@ class _MyServiceOrdersScreenState extends State<MyServiceOrdersScreen> {
           _isLoading = false;
         });
       }
-    } catch (_) {
-      if (mounted) setState(() => _isLoading = false);
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+          _errorMessage = e.toString().replaceAll('Exception: ', '');
+        });
+      }
     }
   }
 
@@ -92,6 +102,13 @@ class _MyServiceOrdersScreenState extends State<MyServiceOrdersScreen> {
           title,
           style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
         ),
+        actions: [
+          IconButton(
+            tooltip: 'Atualizar',
+            icon: const Icon(Icons.refresh),
+            onPressed: _loadServiceOrders,
+          ),
+        ],
       ),
       body: SafeArea(
         child: Align(
@@ -104,27 +121,53 @@ class _MyServiceOrdersScreenState extends State<MyServiceOrdersScreen> {
                 Expanded(
                   child: _isLoading
                       ? const Center(child: CircularProgressIndicator())
-                      : items.isEmpty
-                          ? const Center(
-                              child: Text(
-                                'Nenhuma ordem de serviço encontrada.',
-                                style: TextStyle(fontSize: 13),
+                      : _errorMessage != null
+                          ? Center(
+                              child: Padding(
+                                padding: const EdgeInsets.all(24),
+                                child: Column(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    const Icon(Icons.error_outline,
+                                        size: 48, color: Color(0xFFD32F2F)),
+                                    const SizedBox(height: 12),
+                                    Text(
+                                      _errorMessage!,
+                                      textAlign: TextAlign.center,
+                                      style: const TextStyle(fontSize: 13),
+                                    ),
+                                    const SizedBox(height: 16),
+                                    ElevatedButton.icon(
+                                      onPressed: _loadServiceOrders,
+                                      icon: const Icon(Icons.refresh),
+                                      label: const Text('Tentar novamente'),
+                                    ),
+                                  ],
+                                ),
                               ),
                             )
-                          : ListView.separated(
-                              padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
-                              itemCount: items.length,
-                              separatorBuilder: (context, index) =>
-                                  const SizedBox(height: 16),
-                              itemBuilder: (context, index) {
-                                final item = items[index];
-                                return _ServiceOrderCard(
-                                  key: ValueKey('service-order-${item.id}'),
-                                  item: item,
-                                  onTap: () => _openDetails(item),
-                                );
-                              },
-                            ),
+                          : items.isEmpty
+                              ? const Center(
+                                  child: Text(
+                                    'Nenhuma ordem de serviço encontrada.',
+                                    style: TextStyle(fontSize: 13),
+                                  ),
+                                )
+                              : ListView.separated(
+                                  padding:
+                                      const EdgeInsets.fromLTRB(16, 8, 16, 16),
+                                  itemCount: items.length,
+                                  separatorBuilder: (context, index) =>
+                                      const SizedBox(height: 16),
+                                  itemBuilder: (context, index) {
+                                    final item = items[index];
+                                    return _ServiceOrderCard(
+                                      key: ValueKey('service-order-${item.id}'),
+                                      item: item,
+                                      onTap: () => _openDetails(item),
+                                    );
+                                  },
+                                ),
                 ),
               ],
             ),
