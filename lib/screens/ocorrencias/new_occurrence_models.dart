@@ -22,9 +22,11 @@ class NewOccurrenceData {
     required this.equipmentId,
     required this.description,
     required this.priority,
+    this.imagePath,
   });
 
   final int equipmentId;
   final String description;
   final OccurrencePriority priority;
+  final String? imagePath;
 }

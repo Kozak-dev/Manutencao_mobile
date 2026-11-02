@@ -1,9 +1,11 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
 import '../../services/equipamento_service.dart';
 import '../../services/ocorrencia_service.dart';
 import 'new_occurrence_models.dart';
 
-/// Tela de registro de uma nova ocorrência integrada com a API C#.
+/// Tela de registro de uma nova ocorrência integrada com a API C# e seleção de foto.
 class NewOccurrenceScreen extends StatefulWidget {
   const NewOccurrenceScreen({
     super.key,
@@ -28,11 +30,13 @@ class _NewOccurrenceScreenState extends State<NewOccurrenceScreen> {
 
   final _formKey = GlobalKey<FormState>();
   final _descriptionController = TextEditingController();
+  final ImagePicker _picker = ImagePicker();
 
   List<EquipmentOption> _equipmentOptions = [];
   bool _isLoadingEquipments = true;
   int? _equipmentId;
   OccurrencePriority? _priority;
+  XFile? _selectedImage;
   bool _isLoading = false;
 
   @override
@@ -75,6 +79,64 @@ class _NewOccurrenceScreenState extends State<NewOccurrenceScreen> {
     super.dispose();
   }
 
+  Future<void> _pickImage(ImageSource source) async {
+    try {
+      final XFile? image = await _picker.pickImage(
+        source: source,
+        imageQuality: 80,
+      );
+      if (image != null) {
+        setState(() {
+          _selectedImage = image;
+        });
+      }
+    } catch (_) {
+      _showMessage('Não foi possível carregar a imagem.');
+    }
+  }
+
+  void _showImageSourceDialog() {
+    showModalBottomSheet<void>(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
+      builder: (context) {
+        return SafeArea(
+          child: Wrap(
+            children: [
+              ListTile(
+                leading: const Icon(Icons.camera_alt_outlined, color: _navy),
+                title: const Text('Tirar Foto com a Câmera'),
+                onTap: () {
+                  Navigator.pop(context);
+                  _pickImage(ImageSource.camera);
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.photo_library_outlined, color: _navy),
+                title: const Text('Escolher da Galeria'),
+                onTap: () {
+                  Navigator.pop(context);
+                  _pickImage(ImageSource.gallery);
+                },
+              ),
+              if (_selectedImage != null)
+                ListTile(
+                  leading: const Icon(Icons.delete_outline, color: _errorColor),
+                  title: const Text('Remover Foto', style: TextStyle(color: _errorColor)),
+                  onTap: () {
+                    Navigator.pop(context);
+                    setState(() => _selectedImage = null);
+                  },
+                ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
   Future<void> _submit() async {
     if (_isLoading) return; // evita múltiplos envios
     if (!(_formKey.currentState?.validate() ?? false)) return;
@@ -87,6 +149,7 @@ class _NewOccurrenceScreenState extends State<NewOccurrenceScreen> {
         equipmentId: _equipmentId!,
         description: _descriptionController.text.trim(),
         priority: _priority!,
+        imagePath: _selectedImage?.path,
       );
       final onSubmit = widget.onSubmit;
       if (onSubmit == null) {
@@ -172,11 +235,10 @@ class _NewOccurrenceScreenState extends State<NewOccurrenceScreen> {
                     const _FieldLabel('Prioridade'),
                     _buildPrioritySelector(),
                     const SizedBox(height: 24),
-                    const _FieldLabel('Anectar foto', suffix: ' (Opcional)'),
-                    _PhotoPlaceholder(
-                      onTap: () => _showMessage(
-                        'Anexar foto ainda não está disponível.',
-                      ),
+                    const _FieldLabel('Foto do equipamento', suffix: ' (Opcional)'),
+                    _PhotoWidget(
+                      imageFile: _selectedImage != null ? File(_selectedImage!.path) : null,
+                      onTap: _showImageSourceDialog,
                     ),
                     const SizedBox(height: 24),
                     _buildSubmitButton(),
@@ -409,9 +471,10 @@ class _PriorityButton extends StatelessWidget {
   }
 }
 
-class _PhotoPlaceholder extends StatelessWidget {
-  const _PhotoPlaceholder({required this.onTap});
+class _PhotoWidget extends StatelessWidget {
+  const _PhotoWidget({required this.imageFile, required this.onTap});
 
+  final File? imageFile;
   final VoidCallback onTap;
 
   @override
@@ -422,23 +485,46 @@ class _PhotoPlaceholder extends StatelessWidget {
       child: Container(
         width: double.infinity,
         constraints: const BoxConstraints(minHeight: 124),
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.all(12),
         decoration: BoxDecoration(
           border: Border.all(color: const Color(0xFFBDBDBD)),
           borderRadius: BorderRadius.circular(10),
         ),
-        child: const Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(Icons.photo_camera_outlined, size: 36),
-            SizedBox(height: 12),
-            Text(
-              'Toque para adicionar uma imagem',
-              textAlign: TextAlign.center,
-              style: TextStyle(fontSize: 12),
-            ),
-          ],
-        ),
+        child: imageFile != null
+            ? ClipRRect(
+                borderRadius: BorderRadius.circular(8),
+                child: Stack(
+                  alignment: Alignment.topRight,
+                  children: [
+                    Image.file(
+                      imageFile!,
+                      width: double.infinity,
+                      height: 160,
+                      fit: BoxFit.cover,
+                    ),
+                    Container(
+                      padding: const EdgeInsets.all(6),
+                      decoration: const BoxDecoration(
+                        color: Colors.black54,
+                        shape: BoxShape.circle,
+                      ),
+                      child: const Icon(Icons.edit, color: Colors.white, size: 18),
+                    ),
+                  ],
+                ),
+              )
+            : const Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(Icons.photo_camera_outlined, size: 36, color: Color(0xFF122B4B)),
+                  SizedBox(height: 12),
+                  Text(
+                    'Toque para tirar foto ou escolher da galeria',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFF122B4B)),
+                  ),
+                ],
+              ),
       ),
     );
   }
