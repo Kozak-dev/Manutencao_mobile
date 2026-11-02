@@ -1,15 +1,11 @@
 import 'package:flutter/material.dart';
-
+import '../../services/auth_service.dart';
+import '../../services/ordem_servico_service.dart';
 import 'my_occurrences_models.dart';
 import 'new_occurrence_models.dart';
 
-/// Tela de detalhes de uma ocorrência, aberta a partir de "Minhas Ocorrências".
-///
-/// Sem [occurrence], usa dados simulados. O PIM atribui ao Administrador a
-/// criação da OS, por isso o botão pode ser ocultado com
-/// [canCreateServiceOrder]. Ele só aparece com a ocorrência Aberta (uma OS
-/// por ocorrência).
-class OccurrenceDetailsScreen extends StatelessWidget {
+/// Tela de detalhes de uma ocorrência, permitindo ao Administrador criar uma Ordem de Serviço (OS).
+class OccurrenceDetailsScreen extends StatefulWidget {
   const OccurrenceDetailsScreen({
     super.key,
     this.occurrence,
@@ -21,15 +17,49 @@ class OccurrenceDetailsScreen extends StatelessWidget {
   final bool canCreateServiceOrder;
   final VoidCallback? onCreateServiceOrder;
 
+  @override
+  State<OccurrenceDetailsScreen> createState() => _OccurrenceDetailsScreenState();
+}
+
+class _OccurrenceDetailsScreenState extends State<OccurrenceDetailsScreen> {
   static const _navy = Color(0xFF122B4B);
   static const _blue = Color(0xFF2979FF);
 
+  bool _isLoading = false;
+
+  Future<void> _createServiceOrder(OccurrenceListItem details) async {
+    if (_isLoading) return;
+    setState(() => _isLoading = true);
+
+    try {
+      if (widget.onCreateServiceOrder != null) {
+        widget.onCreateServiceOrder!();
+      } else {
+        await OrdemServicoService.criarOrdemServico(details.id, 'Corretiva');
+      }
+
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Ordem de serviço criada com sucesso!')),
+      );
+      Navigator.pushReplacementNamed(context, '/minhas-os');
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(e.toString().replaceAll('Exception: ', ''))),
+      );
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
-    final details =
-        occurrence ?? buildDemoOccurrences(DateTime.now()).first;
+    final details = widget.occurrence ?? buildDemoOccurrences(DateTime.now()).first;
+    final user = AuthService.currentUser;
+    final isAdmin = user?.isAdmin ?? true; // Administrador pode criar OS
     final showCreateButton =
-        canCreateServiceOrder && details.status == OccurrenceItemStatus.open;
+        widget.canCreateServiceOrder && isAdmin && details.status == OccurrenceItemStatus.open;
 
     return Scaffold(
       backgroundColor: Colors.white,
@@ -70,11 +100,7 @@ class OccurrenceDetailsScreen extends StatelessWidget {
                       width: double.infinity,
                       height: 48,
                       child: FilledButton(
-                        onPressed: onCreateServiceOrder ??
-                                () => _showUnavailable(
-                              context,
-                              'Criar ordem de serviço',
-                            ),
+                        onPressed: _isLoading ? null : () => _createServiceOrder(details),
                         style: FilledButton.styleFrom(
                           backgroundColor: _blue,
                           foregroundColor: Colors.white,
@@ -88,7 +114,16 @@ class OccurrenceDetailsScreen extends StatelessWidget {
                             fontWeight: FontWeight.w700,
                           ),
                         ),
-                        child: const Text('Criar ordem de serviço'),
+                        child: _isLoading
+                            ? const SizedBox(
+                                width: 22,
+                                height: 22,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2.5,
+                                  color: Colors.white,
+                                ),
+                              )
+                            : const Text('Criar ordem de serviço'),
                       ),
                     ),
                   ],
@@ -99,14 +134,6 @@ class OccurrenceDetailsScreen extends StatelessWidget {
         ),
       ),
     );
-  }
-
-  static void _showUnavailable(BuildContext context, String destination) {
-    ScaffoldMessenger.of(context)
-      ..hideCurrentSnackBar()
-      ..showSnackBar(
-        SnackBar(content: Text('"$destination" ainda não está disponível.')),
-      );
   }
 }
 
@@ -124,10 +151,10 @@ class _DetailsCard extends StatelessWidget {
   final OccurrenceListItem details;
 
   Color get _priorityColor => switch (details.priority) {
-    OccurrencePriority.low => const Color(0xFF2EC27E),
-    OccurrencePriority.medium => const Color(0xFFFFB927),
-    OccurrencePriority.high => const Color(0xFFF5304F),
-  };
+        OccurrencePriority.low => const Color(0xFF2EC27E),
+        OccurrencePriority.medium => const Color(0xFFFFB927),
+        OccurrencePriority.high => const Color(0xFFF5304F),
+      };
 
   @override
   Widget build(BuildContext context) {
@@ -255,8 +282,7 @@ class _DetailsCard extends StatelessWidget {
   }
 }
 
-/// Etiqueta colorida com borda, usada para o status da ocorrência e do
-/// equipamento.
+/// Etiqueta colorida com borda, usada para o status da ocorrência e do equipamento.
 class _Badge extends StatelessWidget {
   const _Badge._({
     required this.label,
@@ -267,25 +293,25 @@ class _Badge extends StatelessWidget {
 
   factory _Badge.status(OccurrenceItemStatus status) {
     final (String label, Color border, Color background, Color text) =
-    switch (status) {
+        switch (status) {
       OccurrenceItemStatus.open => (
-      'Aberta',
-      const Color(0xFFF5304F),
-      const Color(0xFFFFEBEE),
-      const Color(0xFFE53950),
-      ),
+          'Aberta',
+          const Color(0xFFF5304F),
+          const Color(0xFFFFEBEE),
+          const Color(0xFFE53950),
+        ),
       OccurrenceItemStatus.inProgress => (
-      'Em atendimento',
-      const Color(0xFFFFA000),
-      const Color(0xFFFFF4DC),
-      const Color(0xFFE08600),
-      ),
+          'Em atendimento',
+          const Color(0xFFFFA000),
+          const Color(0xFFFFF4DC),
+          const Color(0xFFE08600),
+        ),
       OccurrenceItemStatus.resolved => (
-      'Resolvida',
-      const Color(0xFF2EB872),
-      const Color(0xFFE5F8EE),
-      const Color(0xFF1E9A5A),
-      ),
+          'Resolvida',
+          const Color(0xFF2EB872),
+          const Color(0xFFE5F8EE),
+          const Color(0xFF1E9A5A),
+        ),
     };
     return _Badge._(
       label: label,
@@ -298,20 +324,20 @@ class _Badge extends StatelessWidget {
   factory _Badge.condition(EquipmentCondition condition) {
     final (Color border, Color background, Color text) = switch (condition) {
       EquipmentCondition.stopped => (
-      const Color(0xFFF5304F),
-      const Color(0xFFFFEBEE),
-      const Color(0xFFE53950),
-      ),
+          const Color(0xFFF5304F),
+          const Color(0xFFFFEBEE),
+          const Color(0xFFE53950),
+        ),
       EquipmentCondition.underMaintenance => (
-      const Color(0xFFFFA000),
-      const Color(0xFFFFF4DC),
-      const Color(0xFFE08600),
-      ),
+          const Color(0xFFFFA000),
+          const Color(0xFFFFF4DC),
+          const Color(0xFFE08600),
+        ),
       EquipmentCondition.running => (
-      const Color(0xFF2EB872),
-      const Color(0xFFE5F8EE),
-      const Color(0xFF1E9A5A),
-      ),
+          const Color(0xFF2EB872),
+          const Color(0xFFE5F8EE),
+          const Color(0xFF1E9A5A),
+        ),
     };
     return _Badge._(
       label: condition.label,

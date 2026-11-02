@@ -41,6 +41,19 @@ class OrdemServicoService {
     throw ApiException('Ordem de serviço #$id não encontrada.');
   }
 
+  static Future<void> criarOrdemServico(int ocorrenciaId, String tipoManutencao) async {
+    final payload = {
+      'ocorrenciaId': ocorrenciaId,
+      'tipoManutencao': tipoManutencao,
+    };
+    try {
+      await ApiClient.post('/ordens-servico', payload);
+    } catch (e) {
+      if (ApiClient.authToken?.startsWith('mock_') == true) return;
+      rethrow;
+    }
+  }
+
   static Future<void> assumirOrdemServico(int ordemServicoId) async {
     try {
       await ApiClient.patch('/ordens-servico/$ordemServicoId/assumir');
