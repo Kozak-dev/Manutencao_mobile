@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../services/ordem_servico_service.dart';
 import '../../widgets/app_bottom_navigation_bar.dart';
+import 'equipment_maintenance_status_screen.dart';
 import 'my_service_orders_models.dart';
 import 'service_order_details_screen.dart';
 
@@ -74,11 +75,19 @@ class _MyServiceOrdersScreenState extends State<MyServiceOrdersScreen> {
   }
 
   void _openDetails(ServiceOrderListItem item) {
-    Navigator.of(context).push(
-      MaterialPageRoute<void>(
-        builder: (_) => ServiceOrderDetailsScreen(serviceOrder: item),
-      ),
-    );
+    if (item.status == ServiceOrderStatus.inProgress || item.technicianName != null) {
+      Navigator.of(context).push(
+        MaterialPageRoute<void>(
+          builder: (_) => EquipmentMaintenanceStatusScreen(serviceOrder: item),
+        ),
+      );
+    } else {
+      Navigator.of(context).push(
+        MaterialPageRoute<void>(
+          builder: (_) => ServiceOrderDetailsScreen(serviceOrder: item),
+        ),
+      );
+    }
   }
 
   @override

@@ -26,15 +26,26 @@ class _EquipmentMaintenanceStatusScreenState
 
   bool _isLoading = false;
 
+  @override
+  void initState() {
+    super.initState();
+    _atualizarStatusBackend();
+  }
+
+  Future<void> _atualizarStatusBackend() async {
+    try {
+      await OrdemServicoService.assumirOrdemServico(widget.serviceOrder.id);
+      await OrdemServicoService.iniciarManutencao(widget.serviceOrder.id);
+    } catch (_) {}
+  }
+
   Future<void> _iniciarEProsseguir() async {
     if (_isLoading) return;
     setState(() => _isLoading = true);
 
     try {
-      // Inicia a manutenção na API (OS -> Em Atendimento, Equipamento -> Em Manutenção)
       await OrdemServicoService.iniciarManutencao(widget.serviceOrder.id);
     } catch (_) {
-      // Continua mesmo se offline/demo
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
